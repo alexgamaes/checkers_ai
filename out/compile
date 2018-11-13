@@ -1,0 +1,3 @@
+#!/bin/bash
+
+g++ -I../ai/ ../interfaces/console_interface.cpp ../ai/engine.cpp -o console_interface.exe
