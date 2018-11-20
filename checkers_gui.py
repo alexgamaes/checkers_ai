@@ -18,7 +18,8 @@ colour_possible_moves = "orange"
 
 LARGE_FONT = ("Verdana", 40)
 
-ai_players = ['w', 'b']
+ai_players = ['b']
+#ai_players = ['w', 'b']
 
 passes = {
     'w' : 0,
@@ -26,8 +27,8 @@ passes = {
 }
 
 depth_ai_player = {
-    'w' : 3,
-    'b' : 7,
+    'w' : 10,
+    'b' : 10,
 }
 
 
@@ -55,6 +56,8 @@ def start_engine():
     p = subprocess.Popen(['out/console_interface.exe'],
                      stdout=subprocess.PIPE,
                      stdin=subprocess.PIPE)
+                     
+                     
                      
     
 start_engine()                 
@@ -139,7 +142,7 @@ def get_next_move_subprocess(board, player):
         
     print(data)
     try:
-        outs, errs = p.communicate(bytes(data, 'ascii'), timeout=10)
+        outs, errs = p.communicate(bytes(data, 'ascii'), timeout=15)
         p.kill()
         
         
@@ -209,6 +212,15 @@ def color_square(c, r):
     return symbols.b
 
 
+def opposite(p1, p2):
+    if ((p1 == symbols.wm or p1 == symbols.wk) and (p2 == symbols.bm or p2 == symbols.bk)):
+        return True
+        
+    if ((p2 == symbols.wm or p2 == symbols.wk) and (p1 == symbols.bm or p1 == symbols.bk)):
+        return True
+        
+    return False
+
 def write_movement(player, row, col, movements):
     message = ""
     
@@ -252,10 +264,10 @@ class Board(object):
             symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
             symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
             symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
-            symbols.b + symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b + symbols.w,
-            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
-            symbols.b + symbols.wk + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
-            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.wm + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.wk + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
             ]
         """
                    
@@ -288,7 +300,7 @@ class Board(object):
             move = self.legal_movements[i][-1]
             
             if move[0] == row2 and move[1] == col2:
-                write_movement(self.turn(), row1, col1, self.legal_movements)
+                write_movement(self.turn(), row1, col1, self.legal_movements[i])
                 for j in range(0, len(self.legal_movements[i])):
                     if j == 0:
                         self.make_simple_movement(row1, col1, self.legal_movements[i][j][0], self.legal_movements[i][j][1])
@@ -334,8 +346,7 @@ class Board(object):
         r = row1 + delta_row
         
         while r != row2:
-            print(ans[r][c])
-            if ans[r][c] in [symbols.bm, symbols.bk, symbols.wm, symbols.wk]:
+            if opposite(ans[r][c], ans[row1][col1]):
                 ans[r][c] = color_square(r, c);
                 break;
                 

@@ -6,6 +6,8 @@
 #include <string.h>
 #include <iostream>
 
+#define ALPHA_BETA_ENABLE 1
+
 typedef std::array<std::array<char, 8>, 8> Board;
 typedef char coor;
 

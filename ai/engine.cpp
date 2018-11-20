@@ -11,20 +11,35 @@ char coords_to_move(int row, int col) {
     return (row << 4) | col;
 }
 
-int heuristic(const Board &board) {
+
+void print_board(const Board &board) {
+        
+    for(int r = 0; r < 8; r++) {
+        for(int c = 0; c < 8; c++) {
+            cout << board[r][c];
+        }
+        cout << endl;
+    }
+}
+
+
+int heuristic(const Board &board, char player) {
     int ans = 0;
     
     for(int r = 0; r < 8; r++) {
         for(int c = 0; c < 8; c++) {
             if(is_white_player(board[r][c])) {
-                ans += (is_king(board[r][c]))? 5 : 3;
+                ans += (is_king(board[r][c]))? 8 : 5;
             } else if(is_black_player(board[r][c])) {
-                ans -= (is_king(board[r][c]))? 5 : 3;
+                ans -= (is_king(board[r][c]))? 8 : 5;
             }
         }
     }
     
-    return ans;
+    //print_board(board);
+    //cout << player << " " << ((player == 'w')? ans : -ans) << endl;
+    
+    return (player == 'w')? ans : -ans;
 }
 
 bool upgrade_to_king(Board &board, int r, int c) {
@@ -92,7 +107,7 @@ bool can_jump(const Board &board, int row, int col, int rowdirection, int coldir
 }
 
 bool can_move(const Board &board, int row, int col, int rowdirection, int coldirection) {
-        //cout << row + rowdirection << "," <<  col + coldirection << endl;
+        //cout << row + rowdirection << " " << col + coldirection << board[row + rowdirection][col + coldirection] << endl;
         return valid_coord(row + rowdirection, col + coldirection) &&
                 is_free(board[row + rowdirection][col + coldirection]);
     
@@ -152,16 +167,6 @@ Board make_movement_board(const Board &board, int row1, int col1, int row2, int 
     
     return ans;
 } 
-
-void print_board(const Board &board) {
-        
-    for(int r = 0; r < 8; r++) {
-        for(int c = 0; c < 8; c++) {
-            cout << board[r][c];
-        }
-        cout << endl;
-    }
-}
 
 // s: stack of current movements
 void get_jumps(vector<char> &s, vector<vector<char> > &movements, const Board &board, int previousrow, int previouscol, int row, int col, vector<Board> *boards = NULL) {
@@ -269,7 +274,7 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
                         
                         get_jumps(s, movements, next_board, row, col, row + (1 + offset) * rowdirection, col + (1 + offset) * coldirection, boards);
                         break;
-                    } else if(!another_eat && can_move(board, row, col, rowdirection, coldirection)) {
+                    } else if(!another_eat && can_move(board, row, col, offset * rowdirection, offset * coldirection)) {
                         vector<char> s;
                         s.push_back(coords_to_move(row + offset * rowdirection, col + offset * coldirection));
                         
@@ -330,7 +335,6 @@ const int MIN = -10000;
 int minimax(const Board &board, bool maximizingPlayer, char player, int depth, int maxDepth, int alpha, int beta, vector<char> &out) {
     char mate = check_mate(board);
     
-    //cout << "!";
     int number_of_movements = 0; // Check no movements
     
     if(mate) {
@@ -338,11 +342,11 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
             return 0;
         }
         
-        return (player == mate)? 1000 : -1000;
+        return (player == mate)? -1000 : 1000;
     }
     
     if(depth >= maxDepth) {
-        return heuristic(board);
+        return heuristic(board, player);
     }
     
     if(maximizingPlayer) {
@@ -363,24 +367,30 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
                 for(int i = 0; i < boards.size(); i++) {
                     number_of_movements++;
                     
-                    int val = minimax(boards[i], !maximizingPlayer, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
+                    int val = minimax(boards[i], false, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
                     
                     if(val > best) {
                         best = val;
-                    }
-                    
-                    if(best > alpha) {
-                        alpha = best;
                         if(depth == 0) {
+                            //print_board(board);
+                            int x, y;
+                            move_to_coords(movements[i][0], x, y);
                             movements[i].insert(movements[i].begin(), coords_to_move(r, c));
                             out = movements[i];
                         }
                     }
                     
+                    if(best > alpha) {
+                        alpha = best;
+                    }
+
+#ifdef ALPHA_BETA_ENABLE
                     if(beta <= alpha) {
+                        //cout << "TOT" << endl;
                         brk = true;
                         break;
                     }
+#endif
                 } 
             }
         }
@@ -404,24 +414,23 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
                 for(int i = 0; i < boards.size(); i++) {
                     number_of_movements++;
                 
-                    int val = minimax(boards[i], !maximizingPlayer, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
+                    int val = minimax(boards[i], true, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
                     
                     if(val < best) {
                         best = val;
                     }
                     
                     if(best < beta) {
-                        alpha = best;
-                        if(depth == 0) {
-                            movements[i].insert(movements[i].begin(), coords_to_move(r, c));
-                            out = movements[i];
-                        }
+                        beta = best;
                     }
                     
+#ifdef ALPHA_BETA_ENABLE
                     if(beta <= alpha) {
+                        //cout << "TOT" << endl;
                         brk = true;
                         break;
                     }
+#endif
                 } 
             }
         }
