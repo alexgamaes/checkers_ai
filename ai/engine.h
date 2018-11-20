@@ -1,10 +1,11 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <string.h>
 #include <iostream>
 
-typedef char Board[8][8];
+typedef std::array<std::array<char, 8>, 8> Board;
 typedef char coor;
 
 enum symbols {
@@ -54,9 +55,8 @@ inline char color_square(int x, int y) {
 }
 
 // functions
-action next_move(Board board);
+std::vector<char> next_move(const Board &board, char player, int depth);
 void move_to_coords(char move, int &x, int &y);
-
-std::vector<std::vector<char> > get_legal_movements(const Board &board, int x, int y, bool &another_eat);
+std::vector<std::vector<char> > get_legal_movements(const Board &board, int x, int y, bool &another_eat, std::vector<Board> *boards = NULL);
 
 

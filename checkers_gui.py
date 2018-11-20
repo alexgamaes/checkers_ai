@@ -14,6 +14,8 @@ colour_possible_moves = "orange"
 
 LARGE_FONT = ("Verdana", 40)
 
+ai_players = ['b']
+
                      
                      
 #os.killpg(os.getpgid(p.pid), signal.SIGTERM) 
@@ -61,6 +63,38 @@ def get_legal_movements_subprocess(board, x, y):
 
     return []
     
+    
+def get_next_move_subprocess(board, player):
+    global p
+
+    data = 'get_next_movement\n'
+    data += "%s %d\n" % (player, 4)
+    
+    for i in range(8):
+        data += "%s\n" % board[i]
+        
+    try:
+        outs, errs = p.communicate(bytes(data, 'ascii'), timeout=10)
+        p.kill()
+        
+        line = outs.decode('ascii')
+        print("TOT",line)
+        l = list(map(int, list(filter(None, line.split(' ')))))
+        
+        lis = []
+        for i in range(0, len(l), 2):
+            lis.append([l[i], l[i + 1]])
+        
+        movements = lis
+        
+        
+        start_engine()
+        
+        return movements
+    except Exception as e:
+        print(e)
+
+    return []
 """                     
 p.stdin.write(b'abc\n')
 p.stdin.close()
@@ -159,25 +193,35 @@ class Board(object):
             #ans[i] = "".join(ans[i])
             print(self.board[i])
             
+            
+    def ai_movement(self):
+        moves = get_next_move_subprocess(self.board, self.turn())
+        
+        print(moves)
+        return moves
+            
         
     def check_mate(self):
-        whitePieces = False
-        blackPieces = False
+        whitePieces = 0
+        blackPieces = 0
         
         
         for i in range(8):
             for j in range(8):
                 if self.board[i][j] == symbols.wm or self.board[i][j] == symbols.wk:
-                    whitePieces = True
+                    whitePieces += 1
                     
                 if self.board[i][j] == symbols.bm or self.board[i][j] == symbols.bk:
-                    blackPieces = True
+                    blackPieces += 1
                     
-                    
-        if whitePieces == False:
-            return "w"
-        elif blackPieces == False:
+        if whitePieces > 1 and blackPieces > 1:
+            return None
+        if whitePieces == blackPieces:
+            return "t"
+        if whitePieces == 0:
             return "b"
+        elif blackPieces == 0:
+            return "w"
         return None
 
     def turn(self):
@@ -185,6 +229,9 @@ class Board(object):
         
     def next_turn(self):
         self._turn = 'w' if self._turn == 'b' else 'b'
+        
+        if self._turn in ai_players:
+            self.ai_movement()
     
 board = Board()    
         
@@ -370,7 +417,7 @@ def click(event):
         Playing = False
 
 
-    if Playing == True and 0 <= z <= 8 and 0 <= w <= 8 and game_over == False:
+    if Playing == True and 0 <= z <= 8 and 0 <= w <= 8 and game_over == False and not (board.turn() in ai_players):
         if 0 <= z <= 8 and 0 <= w <= 8:
             if selected == True and (square_selected == coords):
                 try:
@@ -463,7 +510,6 @@ def click(event):
             if win == "w":
                 write("White Wins")
                 game_over = True
-
 
 def loadimages():
     global bM, bK
