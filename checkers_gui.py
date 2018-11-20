@@ -5,12 +5,15 @@ import signal
 
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox, colorchooser
+from copy import copy, deepcopy
+
 
 global colour_selected, colour_possible_moves
 colour_selected = "khaki"
 colour_possible_moves = "orange"
 
 LARGE_FONT = ("Verdana", 40)
+
                      
                      
 #os.killpg(os.getpgid(p.pid), signal.SIGTERM) 
@@ -29,7 +32,6 @@ def get_legal_movements_subprocess(board, x, y):
 
     data = 'get_legal_movements\n'
     data += "%d %d\n" % (x, y)
-    
     
     for i in range(8):
         data += "%s\n" % board[i]
@@ -75,6 +77,11 @@ class symbols(object):
     bk = '*'
     wm = '-'
     wk = '%'  
+    
+def color_square(c, r):
+    if (c + r) % 2 == 1:
+        return symbols.w
+    return symbols.b
 
 
 class Board(object):
@@ -92,13 +99,66 @@ class Board(object):
             symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm,
             symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
             ]
+            
+        self.legal_movements = None
  
 
     def legalmoves(self, from_coords, board):
         # print(from_coords)
-
-        return get_legal_movements_subprocess(self.board, from_coords[0], from_coords[1])
+        self.legal_movements = get_legal_movements_subprocess(self.board, from_coords[0], from_coords[1])
         
+        return self.legal_movements
+        
+        
+        
+    def is_legal(self, from_coords):
+        for i in range(0, len(self.legal_movements)):
+            for j in range(0, len(self.legal_movements[i])):
+                move = self.legal_movements[i][j]
+                
+                if move[0] == from_coords[0] and move[1] == from_coords[1]:
+                    return True
+                    
+        return False
+         
+         
+    def make_movement(self, row1, col1, row2, col2):
+        top = min(row1, row2);
+        bottom = max(row1, row2);
+        left = min(col1, col2);
+        right = max(col1, col2);
+        
+        ans = deepcopy(self.board)
+        
+        for i in range(8):
+            ans[i] = list(ans[i])
+        
+        c = left + 1
+        r = top + 1
+        
+        
+        while c < right:
+            if self.board[r][c] in [symbols.bm, symbols.bk, symbols.wm, symbols.wk]:
+                ans[r][c] = color_square(r, c);
+                break;
+                
+            r += 1
+            c += 1
+        
+        ans[row2][col2] = ans[row1][col1]
+        ans[row1][col1] = color_square(row1, col1)
+        
+        print(row1, col1, row2, col2)
+        for i in range(8):
+            ans[i] = "".join(ans[i])
+
+        
+        self.board = ans
+        
+        for i in range(8):
+            #ans[i] = "".join(ans[i])
+            print(self.board[i])
+            
         
     def check_mate(self):
         whitePieces = False
@@ -122,6 +182,9 @@ class Board(object):
 
     def turn(self):
         return self._turn
+        
+    def next_turn(self):
+        self._turn = 'w' if self._turn == 'b' else 'b'
     
 board = Board()    
         
@@ -215,7 +278,7 @@ class Game(tk.Frame):
                     Colours[x].append("black")
                     Even = True
 
-                if board.board[y][x] != "w" and board.board[y][x] != "b":
+                if board.board[y][x] != symbols.w and board.board[y][x] != symbols.b:
                     if board.board[y][x] == symbols.bm:
                         btn.configure(image=bM)
                     if board.board[y][x] == symbols.bk:
@@ -259,7 +322,7 @@ def PiecesImagesUpdate():
     for i in range(0, 8):
         for j in range(0, 8):
             btn = Buttons[i][j]
-            if board.board[j][i] != "w" and board.board[j][i] != "b":
+            if board.board[j][i] != symbols.w and board.board[j][i] != symbols.b:
                 if board.board[j][i] == symbols.bm:
                     btn.configure(image=bM)
                 if board.board[j][i] == symbols.bk:
@@ -269,7 +332,6 @@ def PiecesImagesUpdate():
                     btn.configure(image=wM)
                 if board.board[j][i] == symbols.wk:
                     btn.configure(image=wK)
-                
 
             if selected != True:
                 btn = Buttons[i][j]
@@ -280,14 +342,14 @@ def PiecesImagesUpdate():
                 if colour == "black":
                     btn.configure(bg="black")
 
-            if board.board[j][i] == "w" or board.board[j][i] == "b":
+            if board.board[j][i] == symbols.w or board.board[j][i] == symbols.b:
                 btn = Buttons[i][j]
                 btn.configure(image=Empty)
     
-    turn = "W"
-    if turn == "W":
+    turn = board.turn()
+    if turn == "w":
         Turn_var.set("White's turn")
-    if turn == "B":
+    if turn == "b":
         Turn_var.set("Black's turn")
 
 def click(event):
@@ -324,7 +386,7 @@ def click(event):
                 try:
                     currentTurn = board.turn()
                     print(board.board[w][z], w, z)
-                    if board.board[w][z] != "w" or board.board[w][z] != "b":
+                    if board.board[w][z] != symbols.w or board.board[w][z] != symbols.b:
                         btn = Buttons[z][w]
                         square_selected = z, w
                         piece_selected = w, z
@@ -351,16 +413,20 @@ def click(event):
             elif selected == True:
                 if piece_selected != None:
                     try:
+                        pw, pz = piece_selected
+                        #print("JEEE ", pw, pz, w, z)
+                        if board.is_legal([w, z]):
+                            board.make_movement(pw, pz, w, z)
+                            board.next_turn()
+                            
                         selected = False
-                        piece_selected = w, z
-                        if selected == False:
-                            #board.Next_Turn()
-                            square_selected = ""
-                            piece_selected = None
+                        square_selected = ""
+                        piece_selected = None
+                            
                         PiecesImagesUpdate()
                         
-                    except AttributeError:
-                        selected = True
+                    except AttributeError as e:
+                        print(e)
 
             print(selected, piece_selected)
             if selected == True and piece_selected is not None:
@@ -390,18 +456,12 @@ def click(event):
 
         win = board.check_mate()
         if win != None:
-            if win[0] == "b":
+            if win == "b":
                 write("Black Wins")
-                coords = win[1]
-                button = Buttons[coords[1]][coords[0]]
-                button.configure(bg="red")
                 game_over = True
 
-            if win[0] == "w":
+            if win == "w":
                 write("White Wins")
-                coords = win[1]
-                button = Buttons[coords[1]][coords[0]]
-                button.configure(bg="red")
                 game_over = True
 
 

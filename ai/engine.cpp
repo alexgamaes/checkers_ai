@@ -171,7 +171,7 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
                 Board next_board;
                 make_movement_board(board, row, col, row + (2) * direction, col + (2) * coldirection, next_board);
                 get_jumps(s, movements, next_board, row, col, row + (2) * direction, col + (2) * coldirection);
-            } else if(can_move(board, row, col, direction, coldirection)) {
+            } else if(!another_eat && can_move(board, row, col, direction, coldirection)) {
                 vector<char> s;
                 //cout << row + direction << "*" << col + coldirection << endl; 
                 s.push_back(coords_to_move(row + direction, col + coldirection));
