@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <vector>
 #include <string.h>
 #include <iostream>
@@ -53,6 +54,11 @@ inline bool valid_coord(int col, int row) {
 inline char color_square(int x, int y) {
     return ((x + y) & 1)? '#' : ' ';
 }
+
+template <typename T> int sign(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
 
 // functions
 std::vector<char> next_move(const Board &board, char player, int depth);

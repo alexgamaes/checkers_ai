@@ -27,6 +27,34 @@ int heuristic(const Board &board, char player) {
     return (player == 'w')? ans : -ans;
 }
 
+bool upgrade_to_king(Board &board, int r, int c) {
+    if (is_king(board[r][c])) {
+        return false;
+    }
+    
+    if(is_white_player(board[r][c])) {
+        board[r][c] = symbols::wk;
+    } else if (is_black_player(board[r][c])) {
+        board[r][c] = symbols::bk;
+    }
+    
+    return true;
+}
+
+bool should_upgrade(const Board &board, int r, int c) {
+    if (is_king(board[r][c])) {
+        return false;
+    }
+    
+    if(is_white_player(board[r][c]) && r == 0) {
+        return true;
+    } else if (is_black_player(board[r][c]) && r == 7) {
+        return true;
+    }
+    
+    return false;
+}
+
 
 char check_mate(const Board &board) {
     int whitePieces = 0;
@@ -57,9 +85,9 @@ char check_mate(const Board &board) {
 
 bool can_jump(const Board &board, int row, int col, int rowdirection, int coldirection) {
         return valid_coord(row + rowdirection, col + coldirection) &&
-                valid_coord(row + 2 * rowdirection, col + 2 * coldirection) &&
+                valid_coord(row + sign(rowdirection) + rowdirection, col + sign(coldirection) + coldirection) &&
                 opposite(board[row][col], board[row + rowdirection][col + coldirection]) &&
-                is_free(board[row + 2 * rowdirection][col + 2 * coldirection]);
+                is_free(board[row + sign(rowdirection) + rowdirection][col + sign(coldirection) + coldirection]);
     
 }
 
@@ -106,14 +134,13 @@ bool has_to_eat(const Board &board, int row, int col) {
 Board make_movement_board(const Board &board, int row1, int col1, int row2, int col2) {
     Board ans = board;
     
-    int top = min(row1, row2);
-    int bottom = max(row1, row2);
-    int left = min(col1, col2);
-    int right = max(col1, col2);
+    char piece = board[row1][col1];
     
-    char piece = is_white_player(board[row1][col1]);
+    int delta_row = sign(row2 - row1);
+    int delta_col = sign(col2 - col1);
     
-    for(int c = left + 1, r = top + 1; c < right; r++, c++) {
+    for(int r = row1, c = col1; r != row2; r += delta_row, c += delta_col) {
+        //cout << "opposite " << r << " " << c << endl;
         if(opposite(board[r][c], piece)) {
             ans[r][c] = color_square(r, c);
             break;
@@ -122,34 +149,49 @@ Board make_movement_board(const Board &board, int row1, int col1, int row2, int 
     
     ans[row2][col2] = ans[row1][col1];
     ans[row1][col1] = color_square(row1, col1);
+    
+    return ans;
 } 
+
+void print_board(const Board &board) {
+        
+    for(int r = 0; r < 8; r++) {
+        for(int c = 0; c < 8; c++) {
+            cout << board[r][c];
+        }
+        cout << endl;
+    }
+}
 
 // s: stack of current movements
 void get_jumps(vector<char> &s, vector<vector<char> > &movements, const Board &board, int previousrow, int previouscol, int row, int col, vector<Board> *boards = NULL) {
     // White goes up, black down.
-    int direction = is_white_player(board[previousrow][previouscol])? -1 : 1;
+    int direction = is_white_player(board[row][col])? -1 : 1;
 
     s.push_back(coords_to_move(row, col));    
     movements.push_back(s);
-    if(boards) {
-        boards->push_back(board);
-    }
+
+    //print_board(board);
+    //cout << board[row][col] << endl;
     
-    if(is_king(board[previousrow][previouscol])) {
+    if(is_king(board[row][col])) {
         // Check NE, NO, SE, SO
+
         for(int coldirection = -1; coldirection <= 1; coldirection += 2) {
             for(int rowdirection = -1; rowdirection <= 1; rowdirection += 2) {
                 // King can move any square before jump
+
                 for(int offset = 1; valid_coord(row + offset * rowdirection, col + offset * coldirection); offset++) {
                     // Has to jump
-                    if(can_jump(board, row + offset * rowdirection, col + offset * coldirection, rowdirection, coldirection)) {
-                        Board next_board = make_movement_board(board, row, col, row + (offset + 2) * rowdirection, col + (offset + 2) * coldirection);
-                        get_jumps(s, movements, next_board, row, col, row + (offset + 2) * rowdirection, col + (offset + 2) * coldirection);
+                    if(can_jump(board, row, col, offset * rowdirection, offset * coldirection)) {
+                        Board next_board = make_movement_board(board, row, col, row + (offset + 1) * rowdirection, col + (offset + 1) * coldirection);
+                        get_jumps(s, movements, next_board, row, col, row + (offset + 1) * rowdirection, col + (offset + 1) * coldirection);
                     }
                 }
             }
         }
     } else {
+
         // Only can move forwards, an check if must eat
         for(int coldirection = -1; coldirection <= 1; coldirection += 2) {
             // Has to jump
@@ -158,6 +200,18 @@ void get_jumps(vector<char> &s, vector<vector<char> > &movements, const Board &b
                 get_jumps(s, movements, next_board, row, col, row + (2) * direction, col + (2) * coldirection);
             }
         }
+    }
+    
+    if(boards) {
+        if(should_upgrade(board, row, col)) {
+            Board upgraded_board = board;
+            
+            upgrade_to_king(upgraded_board, row, col);
+            boards->push_back(upgraded_board);
+        } else {
+            boards->push_back(board);
+        }
+        
     }
     
     s.pop_back();
@@ -205,6 +259,37 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
     
     // CALCULATE MOVEMENTS
     if(is_king(board[row][col])) {
+    
+        for(int coldirection = -1; coldirection <= 1; coldirection += 2) {
+            for(int rowdirection = -1; rowdirection <= 1; rowdirection += 2) {
+                for(int offset = 1; valid_coord(row + offset * rowdirection, col + offset * coldirection); offset++) {
+                    if(can_jump(board, row, col, offset * rowdirection, offset * coldirection)) {
+                        vector<char> s;
+                        Board next_board = make_movement_board(board, row, col, row + (1 + offset) * rowdirection, col + (1 + offset) * coldirection);
+                        
+                        get_jumps(s, movements, next_board, row, col, row + (1 + offset) * rowdirection, col + (1 + offset) * coldirection, boards);
+                        break;
+                    } else if(!another_eat && can_move(board, row, col, rowdirection, coldirection)) {
+                        vector<char> s;
+                        s.push_back(coords_to_move(row + offset * rowdirection, col + offset * coldirection));
+                        
+                        if(boards) {
+                            Board next_board = make_movement_board(board, row, col, row + offset * rowdirection, col + offset * coldirection);
+                            
+                            if(should_upgrade(next_board, row + offset * rowdirection, col + offset * coldirection)) {
+                                upgrade_to_king(next_board, row + offset * rowdirection, col + offset * coldirection);
+                            }
+                            boards->push_back(next_board);
+                        }
+                        
+                        
+                        movements.push_back(s);
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
         
     } else {
         //cout << row << "*" << col << board[row][col] << endl; 
@@ -221,6 +306,10 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
                 
                 if(boards) {
                     Board next_board = make_movement_board(board, row, col, row + direction, col + coldirection);
+                    
+                    if(should_upgrade(next_board, row + direction, col + coldirection)) {
+                        upgrade_to_king(next_board, row + direction, col + coldirection);
+                    }
                     boards->push_back(next_board);
                 }
                 
@@ -241,6 +330,7 @@ const int MIN = -10000;
 int minimax(const Board &board, bool maximizingPlayer, char player, int depth, int maxDepth, int alpha, int beta, vector<char> &out) {
     char mate = check_mate(board);
     
+    cout << "!";
     
     if(mate) {
         if(mate == 't') {

@@ -7,6 +7,7 @@ from tkinter import *
 from tkinter import ttk, filedialog, messagebox, colorchooser
 from copy import copy, deepcopy
 
+sign = lambda x: (1, -1)[x < 0]
 
 global colour_selected, colour_possible_moves
 colour_selected = "khaki"
@@ -14,7 +15,7 @@ colour_possible_moves = "orange"
 
 LARGE_FONT = ("Verdana", 40)
 
-ai_players = ['b']
+ai_players = []
 
                      
                      
@@ -38,9 +39,12 @@ def get_legal_movements_subprocess(board, x, y):
     for i in range(8):
         data += "%s\n" % board[i]
         
+    print(data)
     try:
         outs, errs = p.communicate(bytes(data, 'ascii'), timeout=10)
         p.kill()
+        print(outs)
+        print(outs.decode('ascii'))
         
         lines = list(filter(None, outs.decode('ascii').split('|')))
         
@@ -68,7 +72,7 @@ def get_next_move_subprocess(board, player):
     global p
 
     data = 'get_next_movement\n'
-    data += "%s %d\n" % (player, 4)
+    data += "%s %d\n" % (player, 10)
     
     for i in range(8):
         data += "%s\n" % board[i]
@@ -77,9 +81,11 @@ def get_next_move_subprocess(board, player):
         outs, errs = p.communicate(bytes(data, 'ascii'), timeout=10)
         p.kill()
         
+        
         line = outs.decode('ascii')
-        print("TOT",line)
-        l = list(map(int, list(filter(None, line.split(' ')))))
+        print(line)
+        print("Number of nodes: ",line.count("!"))
+        l = list(map(int, list(filter(None, line.replace("!", "").split(' ')))))
         
         lis = []
         for i in range(0, len(l), 2):
@@ -112,6 +118,30 @@ class symbols(object):
     wm = '-'
     wk = '%'  
     
+    
+def upgrade_to_king(b, r, c):
+    ans = deepcopy(b)
+    
+    if b[r][c] in [symbols.wm, symbols.wk]:
+        ans[r][c] = symbols.wk;
+    elif b[r][c] in [symbols.bm, symbols.bk]:
+        ans[r][c] = symbols.bk;
+    
+    
+    return ans
+    
+    
+def should_upgrade(b, r, c):
+    if b[r][c] in [symbols.wk, symbols.bk]:
+        return False
+    
+    if b[r][c] in [symbols.wm, symbols.wk] and r == 0:
+        return True
+    elif b[r][c] in [symbols.bm, symbols.bk] and r == 7:
+        return True
+    
+    return False
+    
 def color_square(c, r):
     if (c + r) % 2 == 1:
         return symbols.w
@@ -123,6 +153,7 @@ class Board(object):
     def __init__(self):
         self._turn = "w"
         
+        """
         self.board = [
             symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm,
             symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b,
@@ -132,6 +163,17 @@ class Board(object):
             symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
             symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm,
             symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
+            ]
+        """
+        self.board = [
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.wm + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
             ]
             
         self.legal_movements = None
@@ -154,37 +196,52 @@ class Board(object):
                     return True
                     
         return False
+    
+    def make_movement(self, row1, col1, row2, col2):   
+        for i in range(0, len(self.legal_movements)):
+            move = self.legal_movements[i][-1]
+            
+            if move[0] == row2 and move[1] == col2:
+                for j in range(0, len(self.legal_movements[i])):
+                    if j == 0:
+                        self.make_simple_movement(row1, col1, self.legal_movements[i][j][0], self.legal_movements[i][j][1])
+                    else:
+                        self.make_simple_movement(self.legal_movements[i][j - 1][0], self.legal_movements[i][j - 1][1], self.legal_movements[i][j][0], self.legal_movements[i][j][1])
+                return True
+                    
+        return False  
          
-         
-    def make_movement(self, row1, col1, row2, col2):
-        top = min(row1, row2);
-        bottom = max(row1, row2);
-        left = min(col1, col2);
-        right = max(col1, col2);
+    def make_simple_movement(self, row1, col1, row2, col2):
+        delta_row = sign(row2 - row1)
+        delta_col = sign(col2 - col1)
         
         ans = deepcopy(self.board)
         
         for i in range(8):
             ans[i] = list(ans[i])
         
-        c = left + 1
-        r = top + 1
+        c = col1 + delta_col
+        r = row1 + delta_row
         
-        
-        while c < right:
-            if self.board[r][c] in [symbols.bm, symbols.bk, symbols.wm, symbols.wk]:
+        while r != row2:
+            print(ans[r][c])
+            if ans[r][c] in [symbols.bm, symbols.bk, symbols.wm, symbols.wk]:
                 ans[r][c] = color_square(r, c);
                 break;
                 
-            r += 1
-            c += 1
+            r += delta_row
+            c += delta_col
         
         ans[row2][col2] = ans[row1][col1]
         ans[row1][col1] = color_square(row1, col1)
         
-        print(row1, col1, row2, col2)
+        if should_upgrade(ans, row2, col2):
+            ans = upgrade_to_king(ans, row2, col2)
+            
         for i in range(8):
             ans[i] = "".join(ans[i])
+            
+           
 
         
         self.board = ans
