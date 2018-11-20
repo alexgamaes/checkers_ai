@@ -330,7 +330,7 @@ const int MIN = -10000;
 int minimax(const Board &board, bool maximizingPlayer, char player, int depth, int maxDepth, int alpha, int beta, vector<char> &out) {
     char mate = check_mate(board);
     
-    cout << "!";
+    //cout << "!";
     
     if(mate) {
         if(mate == 't') {

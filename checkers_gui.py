@@ -15,7 +15,7 @@ colour_possible_moves = "orange"
 
 LARGE_FONT = ("Verdana", 40)
 
-ai_players = []
+ai_players = ['b']
 
                      
                      
@@ -72,11 +72,12 @@ def get_next_move_subprocess(board, player):
     global p
 
     data = 'get_next_movement\n'
-    data += "%s %d\n" % (player, 10)
+    data += "%s %d\n" % (player, 7)
     
     for i in range(8):
         data += "%s\n" % board[i]
         
+    print(data)
     try:
         outs, errs = p.communicate(bytes(data, 'ascii'), timeout=10)
         p.kill()
@@ -153,7 +154,6 @@ class Board(object):
     def __init__(self):
         self._turn = "w"
         
-        """
         self.board = [
             symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm,
             symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b,
@@ -163,17 +163,6 @@ class Board(object):
             symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
             symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm,
             symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
-            ]
-        """
-        self.board = [
-            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
-            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
-            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
-            symbols.w + symbols.b + symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b,
-            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
-            symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
-            symbols.b + symbols.wm + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
-            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
             ]
             
         self.legal_movements = None
