@@ -6,6 +6,8 @@ import signal
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox, colorchooser
 from copy import copy, deepcopy
+from time import sleep
+from threading import Timer
 
 sign = lambda x: (1, -1)[x < 0]
 
@@ -13,9 +15,24 @@ global colour_selected, colour_possible_moves
 colour_selected = "khaki"
 colour_possible_moves = "orange"
 
+
 LARGE_FONT = ("Verdana", 40)
 
-ai_players = ['b']
+ai_players = ['w', 'b']
+
+def write(msg):
+        log['state'] = 'normal'
+        if log.index('end-1c')!='1.0':
+            log.insert('end', '\n')
+            log.see(END)
+        log.insert('end', msg)
+        log['state'] = 'disabled'
+
+
+def clear_log():
+    log['state'] = 'normal'
+    log.delete('1.0', END)
+    log['state'] = 'disabled'
 
                      
                      
@@ -68,11 +85,24 @@ def get_legal_movements_subprocess(board, x, y):
     return []
     
     
+def call_ai_movement():
+    movements = board.ai_movement()
+    board.make_movement_ai(movements)
+    board.next_turn()
+    
+    if board.turn() in ai_players:
+        task_delay()
+    
+def task_delay():
+    t = Timer(0.5, call_ai_movement)
+    t.start()
+    
+    
 def get_next_move_subprocess(board, player):
     global p
 
     data = 'get_next_movement\n'
-    data += "%s %d\n" % (player, 7)
+    data += "%s %d\n" % (player, 6)
     
     for i in range(8):
         data += "%s\n" % board[i]
@@ -154,6 +184,7 @@ class Board(object):
     def __init__(self):
         self._turn = "w"
         
+        
         self.board = [
             symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm,
             symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b,
@@ -164,8 +195,24 @@ class Board(object):
             symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm,
             symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
             ]
-            
+        """
+        
+        self.board = [
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.bm + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.wk + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            ]
+        """
+                   
         self.legal_movements = None
+        
+        if self.turn() in ai_players:
+            task_delay()
  
 
     def legalmoves(self, from_coords, board):
@@ -196,9 +243,24 @@ class Board(object):
                         self.make_simple_movement(row1, col1, self.legal_movements[i][j][0], self.legal_movements[i][j][1])
                     else:
                         self.make_simple_movement(self.legal_movements[i][j - 1][0], self.legal_movements[i][j - 1][1], self.legal_movements[i][j][0], self.legal_movements[i][j][1])
+                    
+                    PiecesImagesUpdate()
+                    app.update()
+                    sleep(0.33)
                 return True
                     
-        return False  
+        return False
+        
+    def make_movement_ai(self, movements):   
+        for j in range(1, len(movements)):    
+            self.make_simple_movement(movements[j - 1][0], movements[j - 1][1], movements[j][0], movements[j][1])
+            
+            PiecesImagesUpdate()
+            app.update()
+            sleep(0.33)
+        return True
+                    
+
          
     def make_simple_movement(self, row1, col1, row2, col2):
         delta_row = sign(row2 - row1)
@@ -275,9 +337,6 @@ class Board(object):
         
     def next_turn(self):
         self._turn = 'w' if self._turn == 'b' else 'b'
-        
-        if self._turn in ai_players:
-            self.ai_movement()
     
 board = Board()    
         
@@ -556,7 +615,10 @@ def click(event):
             if win == "w":
                 write("White Wins")
                 game_over = True
-
+                
+    
+        if not game_over and board.turn() in ai_players:
+            task_delay()
 def loadimages():
     global bM, bK
     global wM, wK, Empty

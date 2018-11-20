@@ -112,7 +112,7 @@ bool has_to_eat(const Board &board, int row, int col) {
                     // King can move any square before jump
                     for(int offset = 1; valid_coord(row + offset * rowdirection, col + offset * coldirection); offset++) {
                         // Has to jump
-                        if(can_jump(board, row + offset * rowdirection, col + offset * coldirection, rowdirection, coldirection)) {
+                        if(can_jump(board, row, col, offset * rowdirection, offset * coldirection)) {
                             return true;
                         }
                     }
@@ -221,6 +221,7 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
     std::vector<std::vector<char> > movements;
     
     bool is_white = is_white_player(board[row][col]);
+    bool my_piece_eat = false;
     
     if(another_eat) {
         if(!has_to_eat(board, row, col)) {
@@ -228,7 +229,6 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
         } 
     } else {
 
-        bool my_piece_eat = false;
         for(int i = 0; i < 8; i++) {
             for(int j = 0; j < 8; j++) {
                 if(is_white && is_white_player(board[i][j])) {
@@ -284,7 +284,7 @@ std::vector<std::vector<char> > get_legal_movements(const Board &board, int row,
                         
                         
                         movements.push_back(s);
-                    } else {
+                    } else if(!my_piece_eat) {
                         break;
                     }
                 }
@@ -360,7 +360,7 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
                 vector<vector<char> > movements = get_legal_movements(board, r, c, another_eat, &boards);
                 
                 for(int i = 0; i < boards.size(); i++) {
-                    int val = minimax(boards[i], !maximizingPlayer, player, depth + 1, maxDepth, alpha, beta, out);
+                    int val = minimax(boards[i], !maximizingPlayer, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
                     
                     if(val > best) {
                         best = val;
@@ -399,7 +399,7 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
                 vector<vector<char> > movements = get_legal_movements(board, r, c, another_eat, &boards);
                 
                 for(int i = 0; i < boards.size(); i++) {
-                    int val = minimax(boards[i], !maximizingPlayer, player, depth + 1, maxDepth, alpha, beta, out);
+                    int val = minimax(boards[i], !maximizingPlayer, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
                     
                     if(val < best) {
                         best = val;
