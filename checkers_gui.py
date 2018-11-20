@@ -1,12 +1,80 @@
 import tkinter as tk
+import subprocess
+import os
+import signal
+
 from tkinter import *
 from tkinter import ttk, filedialog, messagebox, colorchooser
 
 global colour_selected, colour_possible_moves
-colour_selected = "orange"
+colour_selected = "khaki"
 colour_possible_moves = "orange"
 
 LARGE_FONT = ("Verdana", 40)
+                     
+                     
+#os.killpg(os.getpgid(p.pid), signal.SIGTERM) 
+
+def start_engine():
+    global p
+    
+    p = subprocess.Popen(['out/console_interface.exe'],
+                     stdout=subprocess.PIPE,
+                     stdin=subprocess.PIPE)
+                     
+    
+start_engine()                 
+def get_legal_movements_subprocess(board, x, y):
+    global p
+
+    data = 'get_legal_movements\n'
+    data += "%d %d\n" % (x, y)
+    
+    
+    for i in range(8):
+        data += "%s\n" % board[i]
+        
+    try:
+        outs, errs = p.communicate(bytes(data, 'ascii'), timeout=10)
+        p.kill()
+        
+        lines = list(filter(None, outs.decode('ascii').split('|')))
+        
+        movements = []
+        for m in lines[1:]:
+            l = list(map(int, list(filter(None, m.split(' ')))))
+            
+            lis = []
+            for i in range(0, len(l), 2):
+                lis.append([l[i], l[i + 1]])
+            
+            movements.append(lis)
+        
+        
+        start_engine()
+        
+        return movements
+    except Exception as e:
+        print(e)
+
+    return []
+    
+"""                     
+p.stdin.write(b'abc\n')
+p.stdin.close()
+
+print("Reading result 1:", p.stdout.readline().decode(encoding='ascii'))
+
+exit(0)
+"""
+
+class symbols(object):
+    b = ' '
+    w = '#'
+    bm = '+'
+    bk = '*'
+    wm = '-'
+    wk = '%'  
 
 
 class Board(object):
@@ -15,25 +83,47 @@ class Board(object):
         self._turn = "w"
         
         self.board = [
-            ["", "bm", "", "bm", "", "bm", "", "bm"],
-            ["bm", "", "bm", "", "bm", "", "bm", ""],
-            ["", "bm", "", "bm", "", "bm", "", "bm"],
-            ["", "", "", "", "", "", "", ""],
-            ["", "", "", "", "", "", "", ""],
-            ["wm", "", "wm", "", "wm", "", "wm", ""],
-            ["", "wm", "", "wm", "", "wm", "", "wm"],
-            ["wm", "", "wm", "", "wm", "", "wm", ""]
+            symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm,
+            symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b,
+            symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm + symbols.b + symbols.bm,
+            symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b,
+            symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w + symbols.b + symbols.w,
+            symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
+            symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm,
+            symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b + symbols.wm + symbols.b,
             ]
-
+ 
 
     def legalmoves(self, from_coords, board):
         # print(from_coords)
-        piece = self.__board[from_coords[0]][from_coords[1]]
-        return piece.get_legal_moves(from_coords, self.__board)
+
+        return get_legal_movements_subprocess(self.board, from_coords[0], from_coords[1])
+        
+        
+    def check_mate(self):
+        whitePieces = False
+        blackPieces = False
+        
+        
+        for i in range(8):
+            for j in range(8):
+                if self.board[i][j] == symbols.wm or self.board[i][j] == symbols.wk:
+                    whitePieces = True
+                    
+                if self.board[i][j] == symbols.bm or self.board[i][j] == symbols.bk:
+                    blackPieces = True
+                    
+                    
+        if whitePieces == False:
+            return "w"
+        elif blackPieces == False:
+            return "b"
+        return None
 
     def turn(self):
         return self._turn
-        
+    
+board = Board()    
         
 class CheckersApp(tk.Tk):
 
@@ -96,8 +186,6 @@ class Game(tk.Frame):
         Grid.columnconfigure(self, 0, weight=1, minsize=70)
 
         global board, stack, log
-
-
         global game_played
         game_played = True
 
@@ -127,15 +215,15 @@ class Game(tk.Frame):
                     Colours[x].append("black")
                     Even = True
 
-                if board[y][x] != "":
-                    if board[y][x] == "bm":
+                if board.board[y][x] != "w" and board.board[y][x] != "b":
+                    if board.board[y][x] == symbols.bm:
                         btn.configure(image=bM)
-                    if board[y][x] == "bk":
+                    if board.board[y][x] == symbols.bk:
                         btn.configure(image=bK)
 
-                    if board[y][x] == "wm":
+                    if board.board[y][x] == symbols.wm:
                         btn.configure(image=wM)
-                    if board[y][x] == "wk":
+                    if board.board[y][x] == symbols.wk:
                         btn.configure(image=wK)
 
                 btn.grid(column=x, row=y, sticky=N + S + E + W)
@@ -171,15 +259,15 @@ def PiecesImagesUpdate():
     for i in range(0, 8):
         for j in range(0, 8):
             btn = Buttons[i][j]
-            if board[j][i] != "":
-                if board[j][i] == "bm":
+            if board.board[j][i] != "w" and board.board[j][i] != "b":
+                if board.board[j][i] == symbols.bm:
                     btn.configure(image=bM)
-                if board[j][i] == "bk":
+                if board.board[j][i] == symbols.bk:
                     btn.configure(image=bK)
 
-                if board[j][i] == "wm":
+                if board.board[j][i] == symbols.wm:
                     btn.configure(image=wM)
-                if board[j][i] == "wk":
+                if board.board[j][i] == symbols.wk:
                     btn.configure(image=wK)
                 
 
@@ -192,7 +280,7 @@ def PiecesImagesUpdate():
                 if colour == "black":
                     btn.configure(bg="black")
 
-            if board[j][i] == "":
+            if board.board[j][i] == "w" or board.board[j][i] == "b":
                 btn = Buttons[i][j]
                 btn.configure(image=Empty)
     
@@ -226,7 +314,7 @@ def click(event):
                 try:
                     selected = False
                     square_selected = ""
-                    piece_selected = ""
+                    piece_selected = None
 
                 except IndexError:
                     selected = True
@@ -234,24 +322,25 @@ def click(event):
 
             elif selected == False:
                 try:
-                    currentTurn = "W"
-                    if board[w][z] != "":
+                    currentTurn = board.turn()
+                    print(board.board[w][z], w, z)
+                    if board.board[w][z] != "w" or board.board[w][z] != "b":
                         btn = Buttons[z][w]
                         square_selected = z, w
-                        piece_selected = board[w][z]
-                        if currentTurn == "W":
-                            if board[square_selected[1]][square_selected[0]][0] == "w":
+                        piece_selected = w, z
+                        if currentTurn == "w":
+                            if board.board[square_selected[1]][square_selected[0]][0] in [symbols.wm, symbols.wk]:
                                 btn.configure(bg=colour_selected)
                                 selected = True
 
-                        if currentTurn == "B":
-                            if board[square_selected[1]][square_selected[0]][0] == "b":
+                        if currentTurn == "b":
+                            if board.board[square_selected[1]][square_selected[0]][0] in [symbols.bm, symbols.bk]:
                                 btn.configure(bg=colour_selected)
                                 selected = True
 
                         if selected != True:
                             square_selected = ""
-                            piece_selected = ""
+                            piece_selected = None
 
 
                 except IndexError:
@@ -260,30 +349,30 @@ def click(event):
 
 
             elif selected == True:
-                if piece_selected != "":
+                if piece_selected != None:
                     try:
-                        selected = Movement(square_selected,coords,piece_selected)
+                        selected = False
+                        piece_selected = w, z
                         if selected == False:
                             #board.Next_Turn()
                             square_selected = ""
-                            piece_selected = ""
+                            piece_selected = None
                         PiecesImagesUpdate()
                         
                     except AttributeError:
                         selected = True
 
+            print(selected, piece_selected)
             if selected == True and piece_selected is not None:
                 from_coords = [square_selected[1], square_selected[0]]
                 possiblemoves = board.legalmoves(from_coords, board)
                 #print(possiblemoves)
-
-                from_coords = [square_selected[1], square_selected[0]]
-                possiblemoves = board.legalmoves(from_coords, board)
-
+                
                 for i in range(0, len(possiblemoves)):
-                    moves = possiblemoves[i]
-                    btn = Buttons[moves[1]][moves[0]]
-                    btn.configure(bg=colour_possible_moves)
+                    for j in range(0, len(possiblemoves[i])):
+                        moves = possiblemoves[i][j]
+                        btn = Buttons[moves[1]][moves[0]]
+                        btn.configure(bg=colour_possible_moves)
 
 
             elif selected == False:
@@ -301,14 +390,14 @@ def click(event):
 
         win = board.check_mate()
         if win != None:
-            if win[0] == "B":
+            if win[0] == "b":
                 write("Black Wins")
                 coords = win[1]
                 button = Buttons[coords[1]][coords[0]]
                 button.configure(bg="red")
                 game_over = True
 
-            if win[0] == "W":
+            if win[0] == "w":
                 write("White Wins")
                 coords = win[1]
                 button = Buttons[coords[1]][coords[0]]
