@@ -20,6 +20,17 @@ LARGE_FONT = ("Verdana", 40)
 
 ai_players = ['w', 'b']
 
+passes = {
+    'w' : 0,
+    'b' : 0,
+}
+
+depth_ai_player = {
+    'w' : 3,
+    'b' : 7,
+}
+
+
 def write(msg):
         log['state'] = 'normal'
         if log.index('end-1c')!='1.0':
@@ -83,12 +94,31 @@ def get_legal_movements_subprocess(board, x, y):
         print(e)
 
     return []
-    
+ 
+game_over = False   
     
 def call_ai_movement():
+    global game_over
+    if game_over:
+        return
+
     movements = board.ai_movement()
     board.make_movement_ai(movements)
     board.next_turn()
+    
+    win = board.check_mate()
+    if win != None:
+        if win == "b":
+            write("Black Wins")
+            game_over = True
+
+        if win == "w":
+            write("White Wins")
+            game_over = True
+            
+        if win == "t":
+            write("Tie")
+            game_over = True
     
     if board.turn() in ai_players:
         task_delay()
@@ -102,7 +132,7 @@ def get_next_move_subprocess(board, player):
     global p
 
     data = 'get_next_movement\n'
-    data += "%s %d\n" % (player, 6)
+    data += "%s %d\n" % (player, depth_ai_player[player])
     
     for i in range(8):
         data += "%s\n" % board[i]
@@ -179,6 +209,26 @@ def color_square(c, r):
     return symbols.b
 
 
+def write_movement(player, row, col, movements):
+    message = ""
+    
+    if player == 'w':
+        player_name = "White"
+    else:
+        player_name = "Black" 
+    
+    if len(movements) == 0:
+        message = "%s player cannot move this turn." % player_name
+    else:
+        message = "%s player move from (%d,%d) to " % (player_name, row, col)
+        
+        for i in range(len(movements)):
+            if i > 0:
+                message += ","
+            message += "(%d, %d)" % (movements[i][0], movements[i][1])
+            
+    write(message)
+
 class Board(object):
     # The chess board is represented as a 8x8 2D array
     def __init__(self):
@@ -238,6 +288,7 @@ class Board(object):
             move = self.legal_movements[i][-1]
             
             if move[0] == row2 and move[1] == col2:
+                write_movement(self.turn(), row1, col1, self.legal_movements)
                 for j in range(0, len(self.legal_movements[i])):
                     if j == 0:
                         self.make_simple_movement(row1, col1, self.legal_movements[i][j][0], self.legal_movements[i][j][1])
@@ -252,6 +303,14 @@ class Board(object):
         return False
         
     def make_movement_ai(self, movements):   
+        if len(movements) == 0:
+            passes[self.turn()] += 1
+            write_movement(self.turn(), 0, 0, [])
+        else:
+            passes[self.turn()] = 0
+            print(movements[1:])
+            write_movement(self.turn(), movements[0][0], movements[0][1], movements[1:])
+     
         for j in range(1, len(movements)):    
             self.make_simple_movement(movements[j - 1][0], movements[j - 1][1], movements[j][0], movements[j][1])
             
@@ -312,6 +371,13 @@ class Board(object):
     def check_mate(self):
         whitePieces = 0
         blackPieces = 0
+        
+        if (passes['b'] >= 3 and passes['w'] >= 2) or (passes['b'] >= 2 and passes['w'] >= 3):
+            return 't'
+        elif passes['b'] >= 3:
+            return 'w'
+        elif passes['w'] >= 3:
+            return 'b'
         
         
         for i in range(8):
@@ -614,6 +680,10 @@ def click(event):
 
             if win == "w":
                 write("White Wins")
+                game_over = True
+                
+            if win == "t":
+                write("Tie")
                 game_over = True
                 
     

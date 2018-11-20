@@ -11,7 +11,7 @@ char coords_to_move(int row, int col) {
     return (row << 4) | col;
 }
 
-int heuristic(const Board &board, char player) {
+int heuristic(const Board &board) {
     int ans = 0;
     
     for(int r = 0; r < 8; r++) {
@@ -24,7 +24,7 @@ int heuristic(const Board &board, char player) {
         }
     }
     
-    return (player == 'w')? ans : -ans;
+    return ans;
 }
 
 bool upgrade_to_king(Board &board, int r, int c) {
@@ -331,6 +331,7 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
     char mate = check_mate(board);
     
     //cout << "!";
+    int number_of_movements = 0; // Check no movements
     
     if(mate) {
         if(mate == 't') {
@@ -341,7 +342,7 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
     }
     
     if(depth >= maxDepth) {
-        return heuristic(board, player);
+        return heuristic(board);
     }
     
     if(maximizingPlayer) {
@@ -360,6 +361,8 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
                 vector<vector<char> > movements = get_legal_movements(board, r, c, another_eat, &boards);
                 
                 for(int i = 0; i < boards.size(); i++) {
+                    number_of_movements++;
+                    
                     int val = minimax(boards[i], !maximizingPlayer, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
                     
                     if(val > best) {
@@ -382,7 +385,7 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
             }
         }
         
-        return best;
+        return (number_of_movements > 0)? best : -1000;
     } else {
         int best = MAX;
         
@@ -399,6 +402,8 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
                 vector<vector<char> > movements = get_legal_movements(board, r, c, another_eat, &boards);
                 
                 for(int i = 0; i < boards.size(); i++) {
+                    number_of_movements++;
+                
                     int val = minimax(boards[i], !maximizingPlayer, (player == 'w')? 'b' : 'w', depth + 1, maxDepth, alpha, beta, out);
                     
                     if(val < best) {
@@ -421,7 +426,7 @@ int minimax(const Board &board, bool maximizingPlayer, char player, int depth, i
             }
         }
         
-        return best;
+        return (number_of_movements > 0)? best : -1000;
     }
 }
 
