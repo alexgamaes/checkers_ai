@@ -9,19 +9,19 @@ $ ./compile
 $ cd ..
 ```
 
-Then install the Python's library Tkinter. For Ubuntu.
+Then install the Python's library Tkinter. For Ubuntu:
 ```
 $ sudo apt-get install python3-tk
 ```
 
-Finally, run the program
+Finally, run the program, with the command:
 
 ```
 $ python3 checkers_gui.py
 ```
 
 ## Mode
-The program is by default in mode Human vs Machine.
+The program is by default in Human vs Machine mode.
 
 To change it to a Machine vs Machine mode, edit line 21 of the file checkers_gui.py:
 ```
@@ -35,7 +35,6 @@ ai_players = ['w', 'b']
 ```
 
 Also, it's possible to tune the depth of the Minimax for each player, editing the  lines 29,30 of the file checkers_gui.py:
-
 ```
 depth_ai_player = {
     'w' : 10,
